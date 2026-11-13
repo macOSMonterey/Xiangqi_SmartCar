@@ -25,7 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "Motors.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -47,12 +47,19 @@
 /* USER CODE BEGIN Variables */
 
 /* USER CODE END Variables */
-/* Definitions for MotorTask */
-osThreadId_t MotorTaskHandle;
-const osThreadAttr_t MotorTask_attributes = {
-  .name = "MotorTask",
+/* Definitions for ReadMotor_Task */
+osThreadId_t ReadMotor_TaskHandle;
+const osThreadAttr_t ReadMotor_Task_attributes = {
+  .name = "ReadMotor_Task",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for ChassisTask */
+osThreadId_t ChassisTaskHandle;
+const osThreadAttr_t ChassisTask_attributes = {
+  .name = "ChassisTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -60,7 +67,8 @@ const osThreadAttr_t MotorTask_attributes = {
 
 /* USER CODE END FunctionPrototypes */
 
-void Motor(void *argument);
+void ReadMotor(void *argument);
+void Chassis(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -91,8 +99,11 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* creation of MotorTask */
-  MotorTaskHandle = osThreadNew(Motor, NULL, &MotorTask_attributes);
+  /* creation of ReadMotor_Task */
+  ReadMotor_TaskHandle = osThreadNew(ReadMotor, NULL, &ReadMotor_Task_attributes);
+
+  /* creation of ChassisTask */
+  ChassisTaskHandle = osThreadNew(Chassis, NULL, &ChassisTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -104,22 +115,41 @@ void MX_FREERTOS_Init(void) {
 
 }
 
-/* USER CODE BEGIN Header_Motor */
+/* USER CODE BEGIN Header_ReadMotor */
 /**
-  * @brief  Function implementing the MotorTask thread.
+  * @brief  Function implementing the ReadMotor_Task thread.
   * @param  argument: Not used
   * @retval None
   */
-/* USER CODE END Header_Motor */
-void Motor(void *argument)
+/* USER CODE END Header_ReadMotor */
+void ReadMotor(void *argument)
 {
-  /* USER CODE BEGIN Motor */
+  /* USER CODE BEGIN ReadMotor */
+  Motors_Init();
   /* Infinite loop */
   for(;;)
   {
     osDelay(1);
   }
-  /* USER CODE END Motor */
+  /* USER CODE END ReadMotor */
+}
+
+/* USER CODE BEGIN Header_Chassis */
+/**
+* @brief Function implementing the ChassisTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_Chassis */
+void Chassis(void *argument)
+{
+  /* USER CODE BEGIN Chassis */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END Chassis */
 }
 
 /* Private application code --------------------------------------------------*/
