@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * File Name          : freertos.c
-  * Description        : Code for freertos applications
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2026 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * File Name          : freertos.c
+ * Description        : Code for freertos applications
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2026 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
@@ -35,7 +35,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define T_ms 10
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -45,7 +45,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-
+extern Motor_t motor[4];
 /* USER CODE END Variables */
 /* Definitions for ReadMotor_Task */
 osThreadId_t ReadMotor_TaskHandle;
@@ -61,6 +61,13 @@ const osThreadAttr_t ChassisTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
+/* Definitions for Serial_ParseTas */
+osThreadId_t Serial_ParseTasHandle;
+const osThreadAttr_t Serial_ParseTas_attributes = {
+  .name = "Serial_ParseTas",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -69,6 +76,7 @@ const osThreadAttr_t ChassisTask_attributes = {
 
 void ReadMotor(void *argument);
 void Chassis(void *argument);
+void Serial_Parse(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -105,6 +113,9 @@ void MX_FREERTOS_Init(void) {
   /* creation of ChassisTask */
   ChassisTaskHandle = osThreadNew(Chassis, NULL, &ChassisTask_attributes);
 
+  /* creation of Serial_ParseTas */
+  Serial_ParseTasHandle = osThreadNew(Serial_Parse, NULL, &Serial_ParseTas_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -117,39 +128,64 @@ void MX_FREERTOS_Init(void) {
 
 /* USER CODE BEGIN Header_ReadMotor */
 /**
-  * @brief  Function implementing the ReadMotor_Task thread.
-  * @param  argument: Not used
-  * @retval None
-  */
+ * @brief  Function implementing the ReadMotor_Task thread.
+ * @param  argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_ReadMotor */
 void ReadMotor(void *argument)
 {
   /* USER CODE BEGIN ReadMotor */
   Motors_Init();
+  uint8_t i = 0;
   /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  TickType_t xFrequency = pdMS_TO_TICKS(T_ms);
+  for (;;) {
+    for (i = 0; i < 4; i++) {
+      Encoder_Get(&motor[i]);
+      Encoder_to_rpm(&motor[i], T_ms);
+      Encoder_to_Speed(&motor[i], T_ms);
+    }
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
   /* USER CODE END ReadMotor */
 }
 
 /* USER CODE BEGIN Header_Chassis */
 /**
-* @brief Function implementing the ChassisTask thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the ChassisTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_Chassis */
 void Chassis(void *argument)
 {
   /* USER CODE BEGIN Chassis */
   /* Infinite loop */
+  for (;;) {
+    Chassis_Ctrl();
+    osDelay(20);
+  }
+  /* USER CODE END Chassis */
+}
+
+/* USER CODE BEGIN Header_Serial_Parse */
+/**
+* @brief Function implementing the Serial_ParseTas thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_Serial_Parse */
+void Serial_Parse(void *argument)
+{
+  /* USER CODE BEGIN Serial_Parse */
+  /* Infinite loop */
   for(;;)
   {
     osDelay(1);
   }
-  /* USER CODE END Chassis */
+  /* USER CODE END Serial_Parse */
 }
 
 /* Private application code --------------------------------------------------*/

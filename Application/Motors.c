@@ -7,18 +7,24 @@
 #include <stdint.h>
 
 Motor_t motor[4];
-
-double rps_1=0;
-double rps_2=0;
-double rps_3=0;
-double rps_4=0;
-
-double v1=0;
-double v2=0;
-double v3=0;
-double v4=0;
+Chassis_Speed_t Chassis_Move;
 
 struct Kalman_Struct Yaw;
+
+ /**
+  * @brief 限幅函数
+  */
+#define LimitMax(input, max)   \
+    {                          \
+        if (input > max)       \
+        {                      \
+            input = max;       \
+        }                      \
+        else if (input < -max) \
+        {                      \
+            input = -max;      \
+        }                      \
+    }
 
 void STBY_1(uint8_t BitValue)
 {
@@ -76,11 +82,16 @@ void Motors_Init(void)
 	motor[3].motor_hw.htim_pwm=&htim12;
 	motor[3].motor_hw.pwm_channel=TIM_CHANNEL_2;
 
-	PID_Init(&motor[0],0, 0, 0, 0,0);
-	PID_Init(&motor[1],0, 0, 0, 0,0);
-	PID_Init(&motor[2],0, 0, 0, 0,0);
-	PID_Init(&motor[3],0, 0, 0, 0,0);
+	PID_Init(&motor[0],Motor1_PID_MAX_OUT, Motor1_PID_MAX_IOUT, Motor1_PID_KP, Motor1_PID_KI,Motor1_PID_KD);
+	PID_Init(&motor[1],Motor2_PID_MAX_OUT, Motor2_PID_MAX_IOUT, Motor2_PID_KP, Motor2_PID_KI,Motor2_PID_KD);
+	PID_Init(&motor[2],Motor3_PID_MAX_OUT, Motor3_PID_MAX_IOUT, Motor3_PID_KP, Motor3_PID_KI,Motor3_PID_KD);
+	PID_Init(&motor[3],Motor4_PID_MAX_OUT, Motor4_PID_MAX_IOUT, Motor4_PID_KP, Motor4_PID_KI,Motor4_PID_KD);
 	
+	HAL_TIM_Encoder_Start(&htim1, TIM_CHANNEL_ALL); 
+	HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL); 
+	HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL); 
+	HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL); 
+
 	HAL_TIM_PWM_Start(&htim9,TIM_CHANNEL_1);
 	HAL_TIM_PWM_Start(&htim9,TIM_CHANNEL_2);
 	HAL_TIM_PWM_Start(&htim12,TIM_CHANNEL_1);
@@ -89,38 +100,61 @@ void Motors_Init(void)
 
 void PWM_SetCompare(Motor_t* motor)
 {
-	__HAL_TIM_SET_COMPARE(motor->motor_hw.htim_pwm, motor->motor_hw.pwm_channel,motor->motor_pid.out); 
+	__HAL_TIM_SET_COMPARE(motor->motor_hw.htim_pwm, motor->motor_hw.pwm_channel,motor->motor_st.pwm_output); 
 }
 
-int16_t Encoder_Get(Motor_t *motor)
+void Encoder_Get(Motor_t *motor)
 {
-	int16_t Temp;
-	Temp = __HAL_TIM_GET_COUNTER(motor->motor_hw.htim_encoder);
+	motor->motor_st.encoder_count = (int16_t)__HAL_TIM_GET_COUNTER(motor->motor_hw.htim_encoder);
 	__HAL_TIM_SET_COUNTER(motor->motor_hw.htim_encoder, 0);
-	return Temp;
+}
+
+void Encoder_to_rpm(Motor_t *motor,uint16_t T_ms)
+{
+	if (T_ms == 0) return;
+	motor->motor_st.current_rpm=motor->motor_st.encoder_count/4680.0/(T_ms/60000.0);
+}
+
+void Encoder_to_Speed(Motor_t *motor,uint16_t T_ms)
+{
+	motor->motor_st.current_speed=motor->motor_st.encoder_count/4680.0/(T_ms/1000.0)*M_PI*0.06;
 }
 
 void Motor_Ctrl(Motor_t *motor)
 {
-	if(motor->motor_st.target_speed>0)
+	if(motor->motor_pid.out>0)
 	{
-		HAL_GPIO_WritePin(motor->motor_hw.dir_port1,motor->motor_hw.dir_pin1,(GPIO_PinState)0);
-		HAL_GPIO_WritePin(motor->motor_hw.dir_port2,motor->motor_hw.dir_pin2,(GPIO_PinState)1);
+		HAL_GPIO_WritePin(motor->motor_hw.dir_port1,motor->motor_hw.dir_pin1,GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(motor->motor_hw.dir_port2,motor->motor_hw.dir_pin2,GPIO_PIN_SET);
 	}
 	else
 	{
-		HAL_GPIO_WritePin(motor->motor_hw.dir_port1,motor->motor_hw.dir_pin1,(GPIO_PinState)1);
-		HAL_GPIO_WritePin(motor->motor_hw.dir_port2,motor->motor_hw.dir_pin2,(GPIO_PinState)0);
+		HAL_GPIO_WritePin(motor->motor_hw.dir_port1,motor->motor_hw.dir_pin1,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(motor->motor_hw.dir_port2,motor->motor_hw.dir_pin2,GPIO_PIN_RESET);
 	}
+	motor->motor_st.pwm_output=(uint16_t)round(fabs(motor->motor_pid.out));
 	PWM_SetCompare(motor);
 }
 
-void Read_MotorInfo(void)
+void Chassis_Kinematics(Chassis_Speed_t *speed, Motor_t *motor)
 {
-	for(uint8_t i=0;i<4;i++)
-	{
-		Encoder_Get(&motor[i]);
-	}
+    // 麦轮旋转系数，需要根据你的车轮大小和底盘尺寸实际测量调整
+    // 假设你的轮子半径 R=0.03m，L+W 约等于 0.2m，这个系数要自己试出来，先给个 0.15 左右
+    float K_rotate = 0.15f;
+    // 麦轮解算
+    // 左前轮
+    motor[0].motor_st.target_speed = speed->vx - speed->vy - speed->vz * K_rotate;
+    // 左后轮
+    motor[1].motor_st.target_speed = speed->vx + speed->vy - speed->vz * K_rotate;
+    // 右后轮
+    motor[2].motor_st.target_speed = speed->vx - speed->vy + speed->vz * K_rotate;
+    // 右前轮
+    motor[3].motor_st.target_speed = speed->vx + speed->vy + speed->vz * K_rotate;
+
+	LimitMax(motor[0].motor_st.target_speed, 2);
+	LimitMax(motor[1].motor_st.target_speed, 2);
+	LimitMax(motor[2].motor_st.target_speed, 2);
+	LimitMax(motor[3].motor_st.target_speed, 2);
 }
 
 void Kalman(struct Kalman_Struct *C)
@@ -131,37 +165,16 @@ void Kalman(struct Kalman_Struct *C)
 	C->P=(1-C->K)*C->P1;
 }
 
-void PID_Update(Motor_t *motor)
-{
-	motor->motor_pid.fdb=motor->motor_st.current_speed;
-	motor->motor_pid.set=motor->motor_st.target_speed;
-}
-
- /**
-  * @brief 限幅函数
-  */
-#define LimitMax(input, max)   \
-    {                          \
-        if (input > max)       \
-        {                      \
-            input = max;       \
-        }                      \
-        else if (input < -max) \
-        {                      \
-            input = -max;      \
-        }                      \
-    }
-
-double PID_calc(Motor_t *motor, double ref, double set)
+void PID_calc(Motor_t *motor)
 {
     motor->motor_pid.aspeed[1] = motor->motor_pid.aspeed[0];
     motor->motor_pid.aspeed[0] = motor->motor_st.current_speed;
     motor->motor_pid.error[2] = motor->motor_pid.error[1];
     motor->motor_pid.error[1] = motor->motor_pid.error[0];
-    motor->motor_pid.set = set;
-    motor->motor_pid.fdb = ref;
+	motor->motor_pid.fdb=motor->motor_st.current_speed;
+	motor->motor_pid.set=motor->motor_st.target_speed;
     motor->motor_pid.aspeed[2] = motor->motor_pid.aspeed[1] - motor->motor_pid.aspeed[0];
-    motor->motor_pid.error[0] = set - ref;
+    motor->motor_pid.error[0] = motor->motor_pid.set-motor->motor_pid.fdb;
 
     motor->motor_pid.Pout = motor->motor_pid.Kp * motor->motor_pid.error[0];
     motor->motor_pid.Iout += motor->motor_pid.Ki * motor->motor_pid.error[0];
@@ -172,14 +185,13 @@ double PID_calc(Motor_t *motor, double ref, double set)
     LimitMax(motor->motor_pid.Iout, motor->motor_pid.max_iout);
     motor->motor_pid.out = motor->motor_pid.Pout + motor->motor_pid.Iout + motor->motor_pid.Dout;
     LimitMax(motor->motor_pid.out, motor->motor_pid.max_out);
-
-    return motor->motor_pid.out;
 }
 
 void Chassis_Ctrl(void)
 {
+	Chassis_Kinematics(&Chassis_Move,motor);
 	for(uint8_t i=0;i<4;i++)
-	PID_Update(&motor[i]);
+	PID_calc(&motor[i]);
 	for(uint8_t i=0;i<4;i++)
 	Motor_Ctrl(&motor[i]);
 }

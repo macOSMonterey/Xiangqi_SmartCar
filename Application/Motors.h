@@ -2,17 +2,29 @@
 #define __Motors_H
 #include "stm32f4xx_hal.h"                  // Device header
 
+#define Motor1_PID_KP        0.0f
+#define Motor1_PID_KI        0.0f
+#define Motor1_PID_KD        0.0f
+#define Motor1_PID_MAX_OUT   2.0f
+#define Motor1_PID_MAX_IOUT  0.5f
 
-#define Mem_LVGL 1024
-#define Mem_KEY 512
-#define Mem_fps 256
-#define Mem_Encoder 256
-#define Mem_MPU6050 256
-#define Mem_Motor 512
-#define Mem_Ultrasonic 256
-#define Mem_CPUUsage 512
-#define Mem_BlueTooth 256
-#define Mem_BT_Check 512
+#define Motor2_PID_KP        0.0f
+#define Motor2_PID_KI        0.0f
+#define Motor2_PID_KD        0.0f
+#define Motor2_PID_MAX_OUT   2.0f
+#define Motor2_PID_MAX_IOUT  0.5f
+
+#define Motor3_PID_KP        0.0f
+#define Motor3_PID_KI        0.0f
+#define Motor3_PID_KD        0.0f
+#define Motor3_PID_MAX_OUT   2.0f
+#define Motor3_PID_MAX_IOUT  0.5f
+
+#define Motor4_PID_KP        0.0f
+#define Motor4_PID_KI        0.0f
+#define Motor4_PID_KD        0.0f
+#define Motor4_PID_MAX_OUT   2.0f
+#define Motor4_PID_MAX_IOUT  0.5f
 
 struct Kalman_Struct
 {
@@ -42,12 +54,12 @@ typedef struct {
 // ================= 第二层：状态数据层 =================
 // 负责记录电机的目标值、实际值、累计里程等
 typedef struct {
-    int16_t target_speed;        // 目标速度（设定值）
-    int16_t current_speed;       // 当前速度（测量值）
+    double target_speed;        // 目标速度（设定值）m/s
+    double current_speed;       // 当前速度（测量值）m/s
+    double current_rpm;       // 当前转速（测量值）r/min
     int16_t pwm_output;          // 当前PWM输出值
     
-    int32_t last_encoder_count;  // 上一次的编码器读数
-    int32_t total_encoder_count; // 累计编码器脉冲数（可算里程）
+    int16_t encoder_count;  // 当前的编码器读数
 } Motor_Status_t;
 
 // ================= 第三层：闭环控制层 =================
@@ -80,18 +92,22 @@ typedef struct
 typedef struct {
     Motor_Hardware_t motor_hw;  // 包含硬件接口
     Motor_Status_t   motor_st;  // 包含状态数据
-    pid_type_def  motor_pid// 包含控制算法
+    pid_type_def  motor_pid;// 包含控制算法
 } Motor_t;
 
-void Motors_Init(void);
-void Motor_1(int16_t Speed);
-void Motor_2(int16_t Speed);
-void Motor_3(int16_t Speed);
-void Motor_4(int16_t Speed);
+// 定义整车运动状态结构体
+typedef struct {
+    float vx;      // 前后平移速度 (m/s) 前为正
+    float vy;      // 左右平移速度 (m/s) 左为正
+    float vz;      // 自转速度 (rad/s 或 自定义单位) 逆时针为正
+} Chassis_Speed_t;
 
-void Encoder_Task(void * pvParameters);
-void MPU6050_Task(void * pvParameters);
-void Ultrasonic_Task(void * pvParameters);
-void Motor_Task(void * pvParameters);
+void Motors_Init(void);
+
+void Encoder_Get(Motor_t *motor);
+void Encoder_to_rpm(Motor_t *motor,uint16_t T_ms);
+void Encoder_to_Speed(Motor_t *motor,uint16_t T_ms);
+
+void Chassis_Ctrl(void);
 
 #endif
