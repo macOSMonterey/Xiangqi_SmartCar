@@ -2,17 +2,17 @@
 #define __Motors_H
 #include "stm32f4xx_hal.h"                  // Device header
 
-#define Motor1_PID_KP        0.0f
-#define Motor1_PID_KI        0.0f
+#define Motor1_PID_KP        680.0f
+#define Motor1_PID_KI        0.25f
 #define Motor1_PID_KD        0.0f
-#define Motor1_PID_MAX_OUT   2.0f
-#define Motor1_PID_MAX_IOUT  0.5f
+#define Motor1_PID_MAX_OUT   999.0f
+#define Motor1_PID_MAX_IOUT  200.0f
 
-#define Motor2_PID_KP        0.0f
-#define Motor2_PID_KI        0.0f
+#define Motor2_PID_KP        680.0f
+#define Motor2_PID_KI        0.3f
 #define Motor2_PID_KD        0.0f
-#define Motor2_PID_MAX_OUT   2.0f
-#define Motor2_PID_MAX_IOUT  0.5f
+#define Motor2_PID_MAX_OUT   999.0f
+#define Motor2_PID_MAX_IOUT  200.0f
 
 #define Motor3_PID_KP        0.0f
 #define Motor3_PID_KI        0.0f
@@ -54,8 +54,8 @@ typedef struct {
 // ================= 第二层：状态数据层 =================
 // 负责记录电机的目标值、实际值、累计里程等
 typedef struct {
-    double target_speed;        // 目标速度（设定值）m/s
-    double current_speed;       // 当前速度（测量值）m/s
+    double target_speed;        // 目标速度（设定值）cm/s
+    double current_speed;       // 当前速度（测量值）cm/s
     double current_rpm;       // 当前转速（测量值）r/min
     int16_t pwm_output;          // 当前PWM输出值
     

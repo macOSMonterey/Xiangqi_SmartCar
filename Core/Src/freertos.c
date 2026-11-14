@@ -35,7 +35,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define T_ms 10
+#define T_ms 20
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -61,10 +61,10 @@ const osThreadAttr_t ChassisTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for Serial_ParseTas */
-osThreadId_t Serial_ParseTasHandle;
-const osThreadAttr_t Serial_ParseTas_attributes = {
-  .name = "Serial_ParseTas",
+/* Definitions for SerialParseTask */
+osThreadId_t SerialParseTaskHandle;
+const osThreadAttr_t SerialParseTask_attributes = {
+  .name = "SerialParseTask",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
@@ -76,7 +76,7 @@ const osThreadAttr_t Serial_ParseTas_attributes = {
 
 void ReadMotor(void *argument);
 void Chassis(void *argument);
-void Serial_Parse(void *argument);
+void SerialParse(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -113,8 +113,8 @@ void MX_FREERTOS_Init(void) {
   /* creation of ChassisTask */
   ChassisTaskHandle = osThreadNew(Chassis, NULL, &ChassisTask_attributes);
 
-  /* creation of Serial_ParseTas */
-  Serial_ParseTasHandle = osThreadNew(Serial_Parse, NULL, &Serial_ParseTas_attributes);
+  /* creation of SerialParseTask */
+  SerialParseTaskHandle = osThreadNew(SerialParse, NULL, &SerialParseTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -170,22 +170,22 @@ void Chassis(void *argument)
   /* USER CODE END Chassis */
 }
 
-/* USER CODE BEGIN Header_Serial_Parse */
+/* USER CODE BEGIN Header_SerialParse */
 /**
-* @brief Function implementing the Serial_ParseTas thread.
+* @brief Function implementing the SerialParseTask thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_Serial_Parse */
-void Serial_Parse(void *argument)
+/* USER CODE END Header_SerialParse */
+void SerialParse(void *argument)
 {
-  /* USER CODE BEGIN Serial_Parse */
+  /* USER CODE BEGIN SerialParse */
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    osDelay(10);
   }
-  /* USER CODE END Serial_Parse */
+  /* USER CODE END SerialParse */
 }
 
 /* Private application code --------------------------------------------------*/

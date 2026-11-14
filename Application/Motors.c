@@ -117,20 +117,20 @@ void Encoder_to_rpm(Motor_t *motor,uint16_t T_ms)
 
 void Encoder_to_Speed(Motor_t *motor,uint16_t T_ms)
 {
-	motor->motor_st.current_speed=motor->motor_st.encoder_count/4680.0/(T_ms/1000.0)*M_PI*0.06;
+	motor->motor_st.current_speed=motor->motor_st.encoder_count/4680.0/(T_ms/1000.0)*M_PI*0.06*100;
 }
 
 void Motor_Ctrl(Motor_t *motor)
 {
 	if(motor->motor_pid.out>0)
 	{
-		HAL_GPIO_WritePin(motor->motor_hw.dir_port1,motor->motor_hw.dir_pin1,GPIO_PIN_RESET);
-		HAL_GPIO_WritePin(motor->motor_hw.dir_port2,motor->motor_hw.dir_pin2,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(motor->motor_hw.dir_port1,motor->motor_hw.dir_pin1,GPIO_PIN_SET);
+		HAL_GPIO_WritePin(motor->motor_hw.dir_port2,motor->motor_hw.dir_pin2,GPIO_PIN_RESET);
 	}
 	else
 	{
-		HAL_GPIO_WritePin(motor->motor_hw.dir_port1,motor->motor_hw.dir_pin1,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(motor->motor_hw.dir_port2,motor->motor_hw.dir_pin2,GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(motor->motor_hw.dir_port1,motor->motor_hw.dir_pin1,GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(motor->motor_hw.dir_port2,motor->motor_hw.dir_pin2,GPIO_PIN_SET);
 	}
 	motor->motor_st.pwm_output=(uint16_t)round(fabs(motor->motor_pid.out));
 	PWM_SetCompare(motor);
@@ -143,18 +143,18 @@ void Chassis_Kinematics(Chassis_Speed_t *speed, Motor_t *motor)
     float K_rotate = 0.15f;
     // 麦轮解算
     // 左前轮
-    motor[0].motor_st.target_speed = speed->vx - speed->vy - speed->vz * K_rotate;
+    motor[0].motor_st.target_speed = 5;//speed->vx - speed->vy - speed->vz * K_rotate;
     // 左后轮
-    motor[1].motor_st.target_speed = speed->vx + speed->vy - speed->vz * K_rotate;
+    motor[1].motor_st.target_speed = 5;//speed->vx + speed->vy - speed->vz * K_rotate;
     // 右后轮
     motor[2].motor_st.target_speed = speed->vx - speed->vy + speed->vz * K_rotate;
     // 右前轮
     motor[3].motor_st.target_speed = speed->vx + speed->vy + speed->vz * K_rotate;
 
-	LimitMax(motor[0].motor_st.target_speed, 2);
-	LimitMax(motor[1].motor_st.target_speed, 2);
-	LimitMax(motor[2].motor_st.target_speed, 2);
-	LimitMax(motor[3].motor_st.target_speed, 2);
+	LimitMax(motor[0].motor_st.target_speed, 50);
+	LimitMax(motor[1].motor_st.target_speed, 50);
+	LimitMax(motor[2].motor_st.target_speed, 50);
+	LimitMax(motor[3].motor_st.target_speed, 50);
 }
 
 void Kalman(struct Kalman_Struct *C)
