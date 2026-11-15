@@ -24,26 +24,6 @@
 typedef enum
 {
     GAME_STATE_CMD_ID                 = 0x0001,		//比赛状态数据，固定以 1Hz 频率发送
-    GAME_RESULT_CMD_ID                = 0x0002,		//比赛结果数据，比赛结束触发发送
-    GAME_ROBOT_HP_CMD_ID              = 0x0003,		//机器人血量数据，固定以 3Hz 频率发送
-    EVENT_DATA_CMD_ID                 = 0x0101,		//场地事件数据，固定以 1Hz 频率发送
-    REFEREE_WARNING_CMD_ID            = 0x0104,		//裁判警告数据，己方判罚/判负时触发发送，其余时间以 1Hz 频率发送
-    DART_INFO_CMD_ID                  = 0x0105,   //飞镖发射相关数据，固定以1Hz频率发送 
-    ROBOT_STATUS_CMD_ID               = 0x0201,		//机器人性能体系数据，固定以10Hz 频率发送
-    POWER_HEAT_DATA_CMD_ID            = 0x0202,		//实时底盘缓冲能量和射击热量数据，固定以 10Hz 频率发送
-    ROBOT_POS_CMD_ID                  = 0x0203,		//机器人位置数据，固定以1Hz频率发送 
-    BUFF_CMD_ID                       = 0x0204, 	//机器人增益和底盘能量数据，固定以 3Hz 频率发送
-    HURT_DATA_CMD_ID                  = 0x0206,		//伤害状态数据，伤害发生后发送
-    SHOOT_DATA_CMD_ID                 = 0x0207,		//实时射击数据，弹丸发射后发送
-    PROJECTILE_ALLOWANCE_CMD_ID       = 0x0208,		//允许发弹量，固定以 10Hz 频率发送
-    RFID_STATUS_CMD_ID                = 0x0209,   //机器人RFID模块状态，固定以3Hz频率发送
-    GROUND_ROBOT_POSITION_CMD_ID      = 0x020B,   //地面机器人位置数据，固定以1Hz频率发送 
-    SENTRY_INFO_CMD_ID                = 0x020D,   //哨兵自主决策信息同步，固定以1Hz频率发送
-    ROBOT_INTERACTION_CMD_ID          = 0x0301,		//机器人交互数据，发送方触发发送，频率上限为 30Hz
-    MAP_COMMAND_CMD_ID                = 0x0303,   //选手端小地图交互数据，选手端触发发送
-    CUSTOM_INFO_CMD_ID                = 0x0308,   //选手端小地图接收机器人数据，频率上限为3Hz
-    ROBOT_CUSTOM_DATA_2_CMD_ID        = 0x0310,   //机器人发送给自定义终端的数据，频率上限为50Hz
-    ROBOT_CUSTOM_DATA_CMD_ID          = 0x0311,   //自定义终端发送给机器人的自定义指令，频率上限为75Hz
 }referee_cmd_id_t;
 
 typedef  struct

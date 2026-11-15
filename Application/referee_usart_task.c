@@ -28,10 +28,13 @@
 #include "main.h"
 #include "cmsis_os.h"
 
+#include "detect_task.h"
+
 #include "CRC8_CRC16.h"
 #include "fifo.h"
 #include "protocol.h"
 #include "referee.h"
+#include "usart.h"
 
 /**
   * @brief          single byte upacked 
@@ -44,11 +47,10 @@
   * @retval         none
   */
 static void referee_unpack_fifo_data(void);
-
  
 extern UART_HandleTypeDef huart6;
 
-uint8_t usart6_buf[2][USART_RX_BUF_LENGHT];		//// DMA双接收缓冲区，避免溢出
+uint8_t usart1_buf[2][USART_RX_BUF_LENGHT];		//// DMA双接收缓冲区，避免溢出
 
 fifo_s_t referee_fifo;
 uint8_t referee_fifo_buf[REFEREE_FIFO_BUF_LENGTH];
@@ -64,6 +66,22 @@ unpack_data_t referee_unpack_obj;
   * @param[in]      pvParameters: NULL
   * @retval         none
   */
+
+static void usart1_dma_doublebuf_start(void)
+{
+    // 启动 DMA 双缓冲
+    HAL_DMAEx_MultiBufferStart_IT(huart1.hdmarx,
+                                  (uint32_t)&USART1->DR,
+                                  (uint32_t)usart1_buf[0],
+                                  (uint32_t)usart1_buf[1],
+                                  USART_RX_BUF_LENGHT);
+
+    // 开启串口 DMA 接收
+    SET_BIT(USART1->CR3, USART_CR3_DMAR);
+    // 开启空闲中断
+    __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE);
+}
+/*
 void referee_usart_task(void const * argument)
 {
     init_referee_struct_data();
@@ -74,6 +92,22 @@ void referee_usart_task(void const * argument)
     {
         referee_unpack_fifo_data();
         osDelay(10);
+    }
+}*/
+
+void referee_usart_task(void const * argument)
+{
+    // 原有初始化
+    init_referee_struct_data();
+    fifo_s_init(&referee_fifo, referee_fifo_buf, REFEREE_FIFO_BUF_LENGTH);
+    
+    // 启动接收
+    usart1_dma_doublebuf_start();
+
+    while(1)
+    {
+        referee_unpack_fifo_data();
+        osDelay(10); 
     }
 }
 
@@ -196,7 +230,26 @@ void referee_unpack_fifo_data(void)
   }
 }
 
-
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+    if (huart->Instance == USART1)
+    {
+        // 判断当前 DMA 在写哪个缓冲区，我们读另一个
+        if ((huart->hdmarx->Instance->CR & DMA_SxCR_CT) == RESET)
+        {
+            // 刚接收完的是 buf[1]
+            fifo_s_puts(&referee_fifo, (char*)usart1_buf[1], Size);
+        }
+        else
+        {
+            // 刚接收完的是 buf[0]
+            fifo_s_puts(&referee_fifo, (char*)usart1_buf[0], Size);
+        }
+        
+        detect_hook(REFEREE_TOE);
+    }
+}
+/*
 void USART6_IRQHandler(void)
 {
     static volatile uint8_t res;
@@ -214,6 +267,7 @@ void USART6_IRQHandler(void)
             huart6.hdmarx->Instance->CR |= DMA_SxCR_CT;
             __HAL_DMA_ENABLE(huart6.hdmarx);
             fifo_s_puts(&referee_fifo, (char*)usart6_buf[0], this_time_rx_len);
+            detect_hook(REFEREE_TOE);
         }
         else
         {
@@ -223,8 +277,7 @@ void USART6_IRQHandler(void)
             huart6.hdmarx->Instance->CR &= ~(DMA_SxCR_CT);
             __HAL_DMA_ENABLE(huart6.hdmarx);
             fifo_s_puts(&referee_fifo, (char*)usart6_buf[1], this_time_rx_len);
+            detect_hook(REFEREE_TOE);
         }
     }
-}
-
-
+}*/

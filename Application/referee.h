@@ -301,7 +301,7 @@ typedef struct __attribute__((__packed__)) //0x0311
 extern void init_referee_struct_data(void);
 extern void referee_data_solve(uint8_t *frame);
 
-void get_buffer_energy_and_shooter_barrel_heat(fp32 *buffer_energy, fp32 *shooter_barrel_heat);
+void get_buffer_energy_and_shooter_barrel_heat(float *buffer_energy, float *shooter_barrel_heat);
 
 extern uint8_t get_robot_id(void);
 

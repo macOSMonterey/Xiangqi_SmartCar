@@ -68,6 +68,11 @@ const osThreadAttr_t SerialParseTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
+/* Definitions for SerialData */
+osMessageQueueId_t SerialDataHandle;
+const osMessageQueueAttr_t SerialData_attributes = {
+  .name = "SerialData"
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -79,6 +84,24 @@ void Chassis(void *argument);
 void SerialParse(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
+
+/* Hook prototypes */
+void vApplicationIdleHook(void);
+
+/* USER CODE BEGIN 2 */
+void vApplicationIdleHook( void )
+{
+   /* vApplicationIdleHook() will only be called if configUSE_IDLE_HOOK is set
+   to 1 in FreeRTOSConfig.h. It will be called on each iteration of the idle
+   task. It is essential that code added to this hook function never attempts
+   to block in any way (for example, call xQueueReceive() with a block time
+   specified, or call vTaskDelay()). If the application makes use of the
+   vTaskDelete() API function (as this demo application does) then it is also
+   important that vApplicationIdleHook() is permitted to return to its calling
+   function, because it is the responsibility of the idle task to clean up
+   memory allocated by the kernel to any task that has since been deleted. */
+}
+/* USER CODE END 2 */
 
 /**
   * @brief  FreeRTOS initialization
@@ -101,6 +124,10 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN RTOS_TIMERS */
   /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
+
+  /* Create the queue(s) */
+  /* creation of SerialData */
+  SerialDataHandle = osMessageQueueNew (1024, sizeof(uint8_t), &SerialData_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -138,16 +165,16 @@ void ReadMotor(void *argument)
   /* USER CODE BEGIN ReadMotor */
   Motors_Init();
   uint8_t i = 0;
+  uint32_t tick = osKernelGetTickCount();
   /* Infinite loop */
-  TickType_t xLastWakeTime = xTaskGetTickCount();
-  TickType_t xFrequency = pdMS_TO_TICKS(T_ms);
   for (;;) {
     for (i = 0; i < 4; i++) {
       Encoder_Get(&motor[i]);
       Encoder_to_rpm(&motor[i], T_ms);
       Encoder_to_Speed(&motor[i], T_ms);
     }
-    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+    tick += pdMS_TO_TICKS(T_ms);
+    osDelayUntil(tick);
   }
   /* USER CODE END ReadMotor */
 }
