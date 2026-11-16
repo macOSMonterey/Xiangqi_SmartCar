@@ -32,6 +32,16 @@ typedef struct {
 } MPU6050_Data_t;
 
 typedef struct {
+    float Accel_X;
+    float Accel_Y;
+    float Accel_Z;
+    float Temp;
+    float Gyro_X;
+    float Gyro_Y;
+    float Gyro_Z;
+} MPU6050_filteredData_t;
+
+typedef struct {
     uint8_t Sample_Rate;     // 采样率 (Hz)
     uint8_t dlpf_cfg;        // 低通滤波 (0x1A)
 
@@ -55,6 +65,7 @@ typedef struct {
 typedef struct {
     MPU6050_RawData_t rawdata;     // 原始的数据结构
     MPU6050_Data_t data;           // 解析的数据结构
+    MPU6050_filteredData_t filteredData;//滤波后的数据结构
     MPU6050_Config_t config;       // 配置结构
 } MPU6050_t;
 

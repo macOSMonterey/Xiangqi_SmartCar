@@ -29,7 +29,7 @@
 #include "Motors.h"
 #include <stdint.h>
 #include "i2c.h"
-
+#include "filter.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,6 +52,7 @@
 /* USER CODE BEGIN Variables */
 extern Motor_t motor[4];
 extern MPU6050_t MPU6050;
+extern Kalman1D_t Kalman1D_AX,Kalman1D_AY,Kalman1D_AZ,Kalman1D_GX,Kalman1D_GY,Kalman1D_GZ;
 /* USER CODE END Variables */
 /* Definitions for ReadMotor_Task */
 osThreadId_t ReadMotor_TaskHandle;
@@ -323,6 +324,12 @@ void IMU(void *argument)
 void MPUmeasure(void *argument)
 {
   /* USER CODE BEGIN MPUmeasure */
+  Kalman1D_Init(&Kalman1D_AX, 0.2, 2.0, 0);
+  Kalman1D_Init(&Kalman1D_AY, 0.2, 2.0, 0);
+  Kalman1D_Init(&Kalman1D_AZ, 0.2, 2.0, 0);
+  Kalman1D_Init(&Kalman1D_GX, 0.2, 2.0, 0);
+  Kalman1D_Init(&Kalman1D_GY, 0.2, 2.0, 0);
+  Kalman1D_Init(&Kalman1D_GZ, 0.2, 2.0, 0);
   MPU6050_ConfigInit();
   MPU6050_Init();
   MPU6050_GetID(&MPU6050);
@@ -342,7 +349,20 @@ void MPUmeasure(void *argument)
     if (ret == HAL_OK) ret = MPU6050_ReadGyroZ(&MPU6050);
     if (ret == HAL_OK) ret = MPU6050_ReadTemp(&MPU6050);
     osMutexRelease(MPU6050_MutexHandle);
-    if (ret != HAL_OK) fail_count++;
+    if (ret != HAL_OK) 
+    {
+      fail_count++;
+    }
+    else
+    {
+      fail_count=0;
+      MPU6050.filteredData.Accel_X=kalman_filter(&Kalman1D_AX, MPU6050.data.Accel_X);
+      MPU6050.filteredData.Accel_Y=kalman_filter(&Kalman1D_AY, MPU6050.data.Accel_Y);
+      MPU6050.filteredData.Accel_Z=kalman_filter(&Kalman1D_AZ, MPU6050.data.Accel_Y);
+      MPU6050.filteredData.Gyro_X=kalman_filter(&Kalman1D_GX, MPU6050.data.Gyro_X);
+      MPU6050.filteredData.Gyro_Y=kalman_filter(&Kalman1D_GY, MPU6050.data.Gyro_Y);
+      MPU6050.filteredData.Gyro_Z=kalman_filter(&Kalman1D_GZ, MPU6050.data.Gyro_Z);
+    }
     if (fail_count >= 3) 
     {
       HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_RESET);
