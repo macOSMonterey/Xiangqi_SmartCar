@@ -102,7 +102,7 @@ int main(void)
   MX_TIM12_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_Delay(200); 
   /* USER CODE END 2 */
 
   /* Init scheduler */

@@ -28,6 +28,7 @@
 #include "MPU6050.h"
 #include "Motors.h"
 #include <stdint.h>
+#include "i2c.h"
 
 /* USER CODE END Includes */
 
@@ -297,22 +298,36 @@ void IMU(void *argument)
 void MPUmeasure(void *argument)
 {
   /* USER CODE BEGIN MPUmeasure */
+  MPU6050_ConfigInit();
   MPU6050_Init();
   MPU6050_GetID(&MPU6050);
+  HAL_StatusTypeDef ret = HAL_OK;
   uint32_t tick = osKernelGetTickCount();
   uint8_t T_ms = 1000 / MPU6050.config.Sample_Rate;
+  uint8_t fail_count = 0; // 连续失败计数器
   /* Infinite loop */
   for (;;) {
     osMutexAcquire(MPU6050_MutexHandle, osWaitForever);
     tick = osKernelGetTickCount();
-    MPU6050_ReadAccX(&MPU6050);
-    MPU6050_ReadAccY(&MPU6050);
-    MPU6050_ReadAccZ(&MPU6050);
-    MPU6050_ReadGyroX(&MPU6050);
-    MPU6050_ReadGyroY(&MPU6050);
-    MPU6050_ReadGyroZ(&MPU6050);
-    MPU6050_ReadTemp(&MPU6050);
+    ret = MPU6050_ReadAccX(&MPU6050);
+    if (ret == HAL_OK) ret = MPU6050_ReadAccY(&MPU6050);
+    if (ret == HAL_OK) ret = MPU6050_ReadAccZ(&MPU6050);
+    if (ret == HAL_OK) ret = MPU6050_ReadGyroX(&MPU6050);
+    if (ret == HAL_OK) ret = MPU6050_ReadGyroY(&MPU6050);
+    if (ret == HAL_OK) ret = MPU6050_ReadGyroZ(&MPU6050);
+    if (ret == HAL_OK) ret = MPU6050_ReadTemp(&MPU6050);
     osMutexRelease(MPU6050_MutexHandle);
+    if (ret != HAL_OK) fail_count++;
+    if (fail_count >= 3) 
+    {
+      HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_RESET);
+      if(MPU6050_Recover(&MPU6050)==HAL_OK)
+      {
+        HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);
+        ret = HAL_OK;
+        fail_count = 0;
+      }
+    }
     tick += pdMS_TO_TICKS(T_ms);
     osDelayUntil(tick);
   }
@@ -343,7 +358,7 @@ void Key(void *argument)
       while (HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin) == GPIO_PIN_RESET) {
         if ((osKernelGetTickCount() - press_time) >= 2000) {
           osMutexAcquire(MPU6050_MutexHandle, osWaitForever);
-          MPU6050_Calibrate(&MPU6050, 500);
+          if(MPU6050_Calibrate(&MPU6050, 500)!=HAL_OK)HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_RESET);
           osSemaphoreAcquire(sem_KeyPressedHandle, 0);
           osMutexRelease(MPU6050_MutexHandle);
           break;

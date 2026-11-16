@@ -14,19 +14,17 @@
 
 MPU6050_t MPU6050;
 
-void MPU6050_WriteReg(uint8_t RegAddress,uint8_t Data)
+HAL_StatusTypeDef MPU6050_WriteReg(uint8_t RegAddress,uint8_t Data)
 {
-	HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDRESS, RegAddress, I2C_MEMADD_SIZE_8BIT, &Data, 1, 100);
+	return HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDRESS, RegAddress, I2C_MEMADD_SIZE_8BIT, &Data, 1, 100);
 }
 
-uint8_t MPU6050_ReadReg(uint8_t RegAddress)
+HAL_StatusTypeDef MPU6050_ReadReg(uint8_t RegAddress,uint8_t *Data)
 {
-	uint8_t Data;
-	HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDRESS, RegAddress, I2C_MEMADD_SIZE_8BIT, &Data, 1, 100);
-	return Data;
+	return HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDRESS, RegAddress, I2C_MEMADD_SIZE_8BIT, Data, 1, 100);
 }
 
-void MPU6050_Init(void)
+void MPU6050_ConfigInit(void)
 {
 	MPU6050.config.Sample_Rate=100;
 	MPU6050.config.dlpf_cfg=0x04;
@@ -36,8 +34,17 @@ void MPU6050_Init(void)
 	MPU6050.config.gyro_scale=65.536f;
 	MPU6050.config.temp_scale=340.0f;
 	MPU6050.config.temp_offset=36.53f;
+	MPU6050.config.accel_offset_x=MPU6050_accel_offset_x;
+	MPU6050.config.accel_offset_y=MPU6050_accel_offset_y;
+	MPU6050.config.accel_offset_z=MPU6050_accel_offset_z;
+	MPU6050.config.gyro_offset_x=MPU6050_gyro_offset_x;
+	MPU6050.config.gyro_offset_y=MPU6050_gyro_offset_y;
+	MPU6050.config.gyro_offset_z=MPU6050_gyro_offset_z;
+}
+
+void MPU6050_Init(void)
+{
 	MPU6050_WriteReg(MPU6050_PWR_MGMT_1,0x01);
-	osDelay(50);
 	MPU6050_WriteReg(MPU6050_PWR_MGMT_2,0x00);
 	MPU6050_WriteReg(MPU6050_SMPLRT_DIV,(uint8_t)(1000 / MPU6050.config.Sample_Rate - 1));
 	MPU6050_WriteReg(MPU6050_CONFIG,MPU6050.config.dlpf_cfg);
@@ -45,77 +52,106 @@ void MPU6050_Init(void)
 	MPU6050_WriteReg(MPU6050_ACCEL_CONFIG,MPU6050.config.accel_afs_sel);
 }
 
-void MPU6050_GetID(MPU6050_t *MPU6050)
+HAL_StatusTypeDef MPU6050_GetID(MPU6050_t *MPU6050)
 {
-	MPU6050->rawdata.ID=MPU6050_ReadReg(MPU6050_WHO_AM_I);
+	return MPU6050_ReadReg(MPU6050_WHO_AM_I,&(MPU6050->rawdata.ID));
 }
 
-void MPU6050_ReadAccX(MPU6050_t *MPU6050)
+HAL_StatusTypeDef MPU6050_ReadAccX(MPU6050_t *MPU6050)
 {
-	uint16_t Data_H,Data_L;
-	Data_H=MPU6050_ReadReg(MPU6050_ACCEL_XOUT_H);
-	Data_L=MPU6050_ReadReg(MPU6050_ACCEL_XOUT_L);
+	uint8_t Data_H,Data_L;
+	HAL_StatusTypeDef status;
+	status = MPU6050_ReadReg(MPU6050_ACCEL_XOUT_H,&Data_H);
+	if (status != HAL_OK) return status;
+	status = MPU6050_ReadReg(MPU6050_ACCEL_XOUT_L,&Data_L);
+	if (status != HAL_OK) return status;
 	MPU6050->rawdata.Accel_X=(int16_t)((Data_H<<8)|Data_L);
 	MPU6050->data.Accel_X=(MPU6050->rawdata.Accel_X-MPU6050->config.accel_offset_x)/MPU6050->config.accel_scale*g;
+	return HAL_OK;
 }
 
-void MPU6050_ReadAccY(MPU6050_t *MPU6050)
+HAL_StatusTypeDef MPU6050_ReadAccY(MPU6050_t *MPU6050)
 {
-	uint16_t Data_H,Data_L;
-	Data_H=MPU6050_ReadReg(MPU6050_ACCEL_YOUT_H);
-	Data_L=MPU6050_ReadReg(MPU6050_ACCEL_YOUT_L);
+	uint8_t Data_H,Data_L;
+	HAL_StatusTypeDef status;
+	status = MPU6050_ReadReg(MPU6050_ACCEL_YOUT_H,&Data_H);
+	if (status != HAL_OK) return status;
+	status = MPU6050_ReadReg(MPU6050_ACCEL_YOUT_L,&Data_L);
+	if (status != HAL_OK) return status;
 	MPU6050->rawdata.Accel_Y=(int16_t)((Data_H<<8)|Data_L);
 	MPU6050->data.Accel_Y=(MPU6050->rawdata.Accel_Y-MPU6050->config.accel_offset_y)/MPU6050->config.accel_scale*g;
+	return HAL_OK;
 }
 
-void MPU6050_ReadAccZ(MPU6050_t *MPU6050)
+HAL_StatusTypeDef MPU6050_ReadAccZ(MPU6050_t *MPU6050)
 {
-	uint16_t Data_H,Data_L;
-	Data_H=MPU6050_ReadReg(MPU6050_ACCEL_ZOUT_H);
-	Data_L=MPU6050_ReadReg(MPU6050_ACCEL_ZOUT_L);
+	uint8_t Data_H,Data_L;
+	HAL_StatusTypeDef status;
+	status = MPU6050_ReadReg(MPU6050_ACCEL_ZOUT_H,&Data_H);
+	if (status != HAL_OK) return status;
+	status = MPU6050_ReadReg(MPU6050_ACCEL_ZOUT_L,&Data_L);
+	if (status != HAL_OK) return status;
 	MPU6050->rawdata.Accel_Z=(int16_t)((Data_H<<8)|Data_L);
 	MPU6050->data.Accel_Z=(MPU6050->rawdata.Accel_Z-MPU6050->config.accel_offset_z)/MPU6050->config.accel_scale*g;
+	return HAL_OK;
 }
 
-void MPU6050_ReadGyroX(MPU6050_t *MPU6050)
+HAL_StatusTypeDef MPU6050_ReadGyroX(MPU6050_t *MPU6050)
 {
-	uint16_t Data_H,Data_L;
-	Data_H=MPU6050_ReadReg(MPU6050_GYRO_XOUT_H);
-	Data_L=MPU6050_ReadReg(MPU6050_GYRO_XOUT_L);
+	uint8_t Data_H,Data_L;
+	HAL_StatusTypeDef status;
+	status = MPU6050_ReadReg(MPU6050_GYRO_XOUT_H,&Data_H);
+	if (status != HAL_OK) return status;
+	status = MPU6050_ReadReg(MPU6050_GYRO_XOUT_L,&Data_L);
+	if (status != HAL_OK) return status;
 	MPU6050->rawdata.Gyro_X=(int16_t)((Data_H<<8)|Data_L);
 	MPU6050->data.Gyro_X=(MPU6050->rawdata.Gyro_X-MPU6050->config.gyro_offset_x)/MPU6050->config.gyro_scale;
+	return HAL_OK;
 }
 
-void MPU6050_ReadGyroY(MPU6050_t *MPU6050)
+HAL_StatusTypeDef MPU6050_ReadGyroY(MPU6050_t *MPU6050)
 {
-	uint16_t Data_H,Data_L;
-	Data_H=MPU6050_ReadReg(MPU6050_GYRO_YOUT_H);
-	Data_L=MPU6050_ReadReg(MPU6050_GYRO_YOUT_L);
+	uint8_t Data_H,Data_L;
+	HAL_StatusTypeDef status;
+	status = MPU6050_ReadReg(MPU6050_GYRO_YOUT_H,&Data_H);
+	if (status != HAL_OK) return status;
+	status = MPU6050_ReadReg(MPU6050_GYRO_YOUT_L,&Data_L);
+	if (status != HAL_OK) return status;
 	MPU6050->rawdata.Gyro_Y=(int16_t)((Data_H<<8)|Data_L);
 	MPU6050->data.Gyro_Y=(MPU6050->rawdata.Gyro_Y-MPU6050->config.gyro_offset_y)/MPU6050->config.gyro_scale;
+	return HAL_OK;
 }
 
-void MPU6050_ReadGyroZ(MPU6050_t *MPU6050)
+HAL_StatusTypeDef MPU6050_ReadGyroZ(MPU6050_t *MPU6050)
 {
-	uint16_t Data_H,Data_L;
-	Data_H=MPU6050_ReadReg(MPU6050_GYRO_ZOUT_H);
-	Data_L=MPU6050_ReadReg(MPU6050_GYRO_ZOUT_L);
+	uint8_t Data_H,Data_L;
+	HAL_StatusTypeDef status;
+	status = MPU6050_ReadReg(MPU6050_GYRO_ZOUT_H,&Data_H);
+	if (status != HAL_OK) return status;
+	status = MPU6050_ReadReg(MPU6050_GYRO_ZOUT_L,&Data_L);
+	if (status != HAL_OK) return status;
 	MPU6050->rawdata.Gyro_Z=(int16_t)((Data_H<<8)|Data_L);
 	MPU6050->data.Gyro_Z=(MPU6050->rawdata.Gyro_Z-MPU6050->config.gyro_offset_z)/MPU6050->config.gyro_scale;
+	return HAL_OK;
 }
 
-void MPU6050_ReadTemp(MPU6050_t *MPU6050)
+HAL_StatusTypeDef MPU6050_ReadTemp(MPU6050_t *MPU6050)
 {
-	uint16_t Data_H,Data_L;
-	Data_H=MPU6050_ReadReg(MPU6050_TEMP_OUT_H);
-	Data_L=MPU6050_ReadReg(MPU6050_TEMP_OUT_L);
+	uint8_t Data_H,Data_L;
+	HAL_StatusTypeDef status;
+	status = MPU6050_ReadReg(MPU6050_TEMP_OUT_H,&Data_H);
+	if (status != HAL_OK) return status;
+	status = MPU6050_ReadReg(MPU6050_TEMP_OUT_L,&Data_L);
+	if (status != HAL_OK) return status;
 	MPU6050->rawdata.Temp=(int16_t)((Data_H<<8)|Data_L);
 	MPU6050->data.Temp=MPU6050->rawdata.Temp/MPU6050->config.temp_scale+MPU6050->config.temp_offset;
+	return HAL_OK;
 }
 
 /* 校准函数：调用此函数时，务必保证板子【绝对静止、水平平放】 */
-void MPU6050_Calibrate(MPU6050_t *MPU6050,uint16_t samples)
+HAL_StatusTypeDef MPU6050_Calibrate(MPU6050_t *MPU6050,uint16_t samples)
 {
+	HAL_StatusTypeDef status;
 	HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);
     int32_t ax_sum = 0, ay_sum = 0, az_sum = 0;
     int32_t gx_sum = 0, gy_sum = 0, gz_sum = 0;
@@ -124,13 +160,20 @@ void MPU6050_Calibrate(MPU6050_t *MPU6050,uint16_t samples)
     for (int i = 0; i < samples; i++)
     {
 		if(i%10==0)HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_6);
-		MPU6050_ReadAccX(MPU6050);
-		MPU6050_ReadAccY(MPU6050);
-		MPU6050_ReadAccZ(MPU6050);
-		MPU6050_ReadGyroX(MPU6050);
-		MPU6050_ReadGyroY(MPU6050);
-		MPU6050_ReadGyroZ(MPU6050);
-		MPU6050_ReadTemp(MPU6050);
+		status = MPU6050_ReadAccX(MPU6050);
+		if (status != HAL_OK) return status;
+		status = MPU6050_ReadAccY(MPU6050);
+		if (status != HAL_OK) return status;
+		status = MPU6050_ReadAccZ(MPU6050);
+		if (status != HAL_OK) return status;
+		status = MPU6050_ReadGyroX(MPU6050);
+		if (status != HAL_OK) return status;
+		status = MPU6050_ReadGyroY(MPU6050);
+		if (status != HAL_OK) return status;
+		status = MPU6050_ReadGyroZ(MPU6050);
+		if (status != HAL_OK) return status;
+		status = MPU6050_ReadTemp(MPU6050);
+		if (status != HAL_OK) return status;
 
         ax_sum += MPU6050->rawdata.Accel_X;
         ay_sum += MPU6050->rawdata.Accel_Y;
@@ -156,4 +199,36 @@ void MPU6050_Calibrate(MPU6050_t *MPU6050,uint16_t samples)
     MPU6050->config.gyro_offset_x = gx_sum / samples;
     MPU6050->config.gyro_offset_y = gy_sum / samples;
     MPU6050->config.gyro_offset_z = gz_sum / samples;
+	return HAL_OK;
+}
+
+HAL_StatusTypeDef MPU6050_Recover(MPU6050_t *mpu)
+{
+    // 1. 强制关闭 I2C1 时钟
+    __HAL_RCC_I2C1_CLK_DISABLE();
+    
+    // 2. 将 I2C1 从底层硬件强制复位
+    __HAL_RCC_I2C1_FORCE_RESET();
+    
+    // 3. 释放复位
+    __HAL_RCC_I2C1_RELEASE_RESET();
+    
+    // 4. 重新使能时钟
+    __HAL_RCC_I2C1_CLK_ENABLE();
+    
+    // 5. 重新初始化 I2C（恢复引脚和速率）
+    if (HAL_I2C_Init(&hi2c1) != HAL_OK) {
+        return HAL_ERROR;
+    }
+    
+    // 6. 重新唤醒并配置传感器
+    MPU6050_Init();
+    
+    // 7. 验证传感器是否真正复活（关键！）
+    uint8_t id = 0;
+    if (MPU6050_ReadReg(MPU6050_WHO_AM_I, &id) != HAL_OK || id != 0x68) {
+        return HAL_ERROR; 
+    }
+    
+    return HAL_OK; // 满血复活
 }
