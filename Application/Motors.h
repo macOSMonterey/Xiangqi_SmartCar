@@ -28,13 +28,13 @@
 
 struct Kalman_Struct
 {
-	double Angle;
-    double PreAngle;
-    double P1;
-	double P;
-    double Q;
-    double K;
-	double R;
+	float Angle;
+    float PreAngle;
+    float P1;
+	float P;
+    float Q;
+    float K;
+	float R;
 };
 
 // ================= 第一层：硬件接口层 =================
@@ -54,9 +54,9 @@ typedef struct {
 // ================= 第二层：状态数据层 =================
 // 负责记录电机的目标值、实际值、累计里程等
 typedef struct {
-    double target_speed;        // 目标速度（设定值）cm/s
-    double current_speed;       // 当前速度（测量值）cm/s
-    double current_rpm;       // 当前转速（测量值）r/min
+    float target_speed;        // 目标速度（设定值）cm/s
+    float current_speed;       // 当前速度（测量值）cm/s
+    float current_rpm;       // 当前转速（测量值）r/min
     int16_t pwm_output;          // 当前PWM输出值
     
     int16_t encoder_count;  // 当前的编码器读数
@@ -68,23 +68,23 @@ typedef struct
 {
     uint8_t mode;
     //PID 三参数
-    double Kp;
-    double Ki;
-    double Kd;
+    float Kp;
+    float Ki;
+    float Kd;
 
-    double max_out;  //最大输出
-    double max_iout; //最大积分输出
+    float max_out;  //最大输出
+    float max_iout; //最大积分输出
 
-    double set;
-    double fdb;
-	double aspeed[3];
+    float set;
+    float fdb;
+	float aspeed[3];
 
-    double out;
-    double Pout;
-    double Iout;
-    double Dout;
-    double Dbuf[3];  //微分项 0最新 1上一次 2上上次
-    double error[3]; //误差项 0最新 1上一次 2上上次
+    float out;
+    float Pout;
+    float Iout;
+    float Dout;
+    float Dbuf[3];  //微分项 0最新 1上一次 2上上次
+    float error[3]; //误差项 0最新 1上一次 2上上次
 
 } pid_type_def;
 

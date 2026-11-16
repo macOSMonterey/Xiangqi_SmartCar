@@ -15,13 +15,13 @@ typedef struct {
 } MPU6050_RawData_t;
 
 typedef struct {
-    double Accel_X;
-    double Accel_Y;
-    double Accel_Z;
-    double Temp;
-    double Gyro_X;
-    double Gyro_Y;
-    double Gyro_Z;
+    float Accel_X;
+    float Accel_Y;
+    float Accel_Z;
+    float Temp;
+    float Gyro_X;
+    float Gyro_Y;
+    float Gyro_Z;
 } MPU6050_Data_t;
 
 typedef struct {
@@ -29,15 +29,15 @@ typedef struct {
     uint8_t dlpf_cfg;        // 低通滤波 (0x1A)
 
     uint8_t gyro_fs_sel;     // 陀螺仪量程 (0x1B)
-    int16_t gyro_offset_x;   // 校准得出的偏置
-    int16_t gyro_offset_y;
-    int16_t gyro_offset_z;
+    float gyro_offset_x;   // 校准得出的偏置
+    float gyro_offset_y;
+    float gyro_offset_z;
     float gyro_scale;        // 对应的陀螺仪换算系数
 
     uint8_t accel_afs_sel;   // 加速度量程 (0x1C)
-    int16_t accel_offset_x;  // 校准得出的偏置
-    int16_t accel_offset_y;
-    int16_t accel_offset_z;
+    float accel_offset_x;  // 校准得出的偏置
+    float accel_offset_y;
+    float accel_offset_z;
     float accel_scale;       // 对应的加速度换算系数
 
     float temp_scale;        // 对应的温度换算系数
@@ -52,6 +52,7 @@ typedef struct {
 } MPU6050_t;
 
 void MPU6050_Init(void);
+void MPU6050_Calibrate(MPU6050_t *MPU6050,uint16_t samples);
 
 void MPU6050_GetID(MPU6050_t *MPU6050);
 void MPU6050_ReadAccX(MPU6050_t *MPU6050);

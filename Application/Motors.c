@@ -36,7 +36,7 @@ void STBY_2(uint8_t BitValue)
 	HAL_GPIO_WritePin(GPIOE,GPIO_PIN_8,(GPIO_PinState)BitValue);
 }
 
-void PID_Init(Motor_t *motor, double maxout, double max_iout, double kp, double ki, double kd)
+void PID_Init(Motor_t *motor, float maxout, float max_iout, float kp, float ki, float kd)
 {
     motor->motor_pid.Kp = kp;
     motor->motor_pid.Ki = ki;
@@ -207,10 +207,10 @@ void Encoder_Task(void * pvParameters)
 	TickType_t xFrequency =pdMS_TO_TICKS(100);
 	while(1)
 	{
-		rps_1=(double)Encoder_Get(TIM1)/468.0;
-		rps_2=(double)Encoder_Get(TIM2)/468.0;
-		rps_3=(double)Encoder_Get(TIM3)/468.0;
-		rps_4=(double)Encoder_Get(TIM4)/468.0;
+		rps_1=(float)Encoder_Get(TIM1)/468.0;
+		rps_2=(float)Encoder_Get(TIM2)/468.0;
+		rps_3=(float)Encoder_Get(TIM3)/468.0;
+		rps_4=(float)Encoder_Get(TIM4)/468.0;
 		Motor_1(PID_Value(&PID_1,v1/3.14159/0.06,rps_1));
 		Motor_2(PID_Value(&PID_2,v2/3.14159/0.06,rps_2));
 		Motor_3(PID_Value(&PID_3,v3/3.14159/0.06,rps_3));

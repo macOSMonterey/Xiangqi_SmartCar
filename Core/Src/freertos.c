@@ -19,10 +19,9 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
-#include "cmsis_os.h"
-#include "main.h"
 #include "task.h"
-
+#include "main.h"
+#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -39,7 +38,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define KEY_Pin       GPIO_PIN_4
+#define KEY_GPIO_Port GPIOE
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -55,34 +55,60 @@ extern MPU6050_t MPU6050;
 /* Definitions for ReadMotor_Task */
 osThreadId_t ReadMotor_TaskHandle;
 const osThreadAttr_t ReadMotor_Task_attributes = {
-    .name = "ReadMotor_Task",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+  .name = "ReadMotor_Task",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for Chassis_Task */
 osThreadId_t Chassis_TaskHandle;
 const osThreadAttr_t Chassis_Task_attributes = {
-    .name = "Chassis_Task",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityLow,
+  .name = "Chassis_Task",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for SerialParse_Task */
 osThreadId_t SerialParse_TaskHandle;
 const osThreadAttr_t SerialParse_Task_attributes = {
-    .name = "SerialParse_Task",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityLow,
+  .name = "SerialParse_Task",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for IMU_Task */
 osThreadId_t IMU_TaskHandle;
 const osThreadAttr_t IMU_Task_attributes = {
-    .name = "IMU_Task",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityLow,
+  .name = "IMU_Task",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for MPUmeasure_Task */
+osThreadId_t MPUmeasure_TaskHandle;
+const osThreadAttr_t MPUmeasure_Task_attributes = {
+  .name = "MPUmeasure_Task",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for Key_Task */
+osThreadId_t Key_TaskHandle;
+const osThreadAttr_t Key_Task_attributes = {
+  .name = "Key_Task",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for SerialData */
 osMessageQueueId_t SerialDataHandle;
-const osMessageQueueAttr_t SerialData_attributes = {.name = "SerialData"};
+const osMessageQueueAttr_t SerialData_attributes = {
+  .name = "SerialData"
+};
+/* Definitions for MPU6050_Mutex */
+osMutexId_t MPU6050_MutexHandle;
+const osMutexAttr_t MPU6050_Mutex_attributes = {
+  .name = "MPU6050_Mutex"
+};
+/* Definitions for sem_KeyPressed */
+osSemaphoreId_t sem_KeyPressedHandle;
+const osSemaphoreAttr_t sem_KeyPressed_attributes = {
+  .name = "sem_KeyPressed"
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -93,6 +119,8 @@ void ReadMotor(void *argument);
 void Chassis(void *argument);
 void SerialParse(void *argument);
 void IMU(void *argument);
+void MPUmeasure(void *argument);
+void Key(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -114,18 +142,25 @@ void vApplicationIdleHook(void) {
 /* USER CODE END 2 */
 
 /**
- * @brief  FreeRTOS initialization
- * @param  None
- * @retval None
- */
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
+  /* Create the mutex(es) */
+  /* creation of MPU6050_Mutex */
+  MPU6050_MutexHandle = osMutexNew(&MPU6050_Mutex_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
+
+  /* Create the semaphores(s) */
+  /* creation of sem_KeyPressed */
+  sem_KeyPressedHandle = osSemaphoreNew(1, 0, &sem_KeyPressed_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
@@ -137,8 +172,7 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the queue(s) */
   /* creation of SerialData */
-  SerialDataHandle =
-      osMessageQueueNew(1024, sizeof(uint8_t), &SerialData_attributes);
+  SerialDataHandle = osMessageQueueNew (1024, sizeof(uint8_t), &SerialData_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -146,18 +180,22 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the thread(s) */
   /* creation of ReadMotor_Task */
-  ReadMotor_TaskHandle =
-      osThreadNew(ReadMotor, NULL, &ReadMotor_Task_attributes);
+  ReadMotor_TaskHandle = osThreadNew(ReadMotor, NULL, &ReadMotor_Task_attributes);
 
   /* creation of Chassis_Task */
   Chassis_TaskHandle = osThreadNew(Chassis, NULL, &Chassis_Task_attributes);
 
   /* creation of SerialParse_Task */
-  SerialParse_TaskHandle =
-      osThreadNew(SerialParse, NULL, &SerialParse_Task_attributes);
+  SerialParse_TaskHandle = osThreadNew(SerialParse, NULL, &SerialParse_Task_attributes);
 
   /* creation of IMU_Task */
   IMU_TaskHandle = osThreadNew(IMU, NULL, &IMU_Task_attributes);
+
+  /* creation of MPUmeasure_Task */
+  MPUmeasure_TaskHandle = osThreadNew(MPUmeasure, NULL, &MPUmeasure_Task_attributes);
+
+  /* creation of Key_Task */
+  Key_TaskHandle = osThreadNew(Key, NULL, &Key_Task_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -166,6 +204,7 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN RTOS_EVENTS */
   /* add events, ... */
   /* USER CODE END RTOS_EVENTS */
+
 }
 
 /* USER CODE BEGIN Header_ReadMotor */
@@ -175,12 +214,13 @@ void MX_FREERTOS_Init(void) {
  * @retval None
  */
 /* USER CODE END Header_ReadMotor */
-void ReadMotor(void *argument) {
+void ReadMotor(void *argument)
+{
   /* USER CODE BEGIN ReadMotor */
   Motors_Init();
   uint8_t i = 0;
   uint32_t tick = osKernelGetTickCount();
-  uint8_t T_ms=20;
+  uint8_t T_ms = 20;
   /* Infinite loop */
   for (;;) {
     for (i = 0; i < 4; i++) {
@@ -201,11 +241,12 @@ void ReadMotor(void *argument) {
  * @retval None
  */
 /* USER CODE END Header_Chassis */
-void Chassis(void *argument) {
+void Chassis(void *argument)
+{
   /* USER CODE BEGIN Chassis */
   /* Infinite loop */
   for (;;) {
-    //Chassis_Ctrl();
+    // Chassis_Ctrl();
     osDelay(20);
   }
   /* USER CODE END Chassis */
@@ -218,7 +259,8 @@ void Chassis(void *argument) {
  * @retval None
  */
 /* USER CODE END Header_SerialParse */
-void SerialParse(void *argument) {
+void SerialParse(void *argument)
+{
   /* USER CODE BEGIN SerialParse */
   /* Infinite loop */
   for (;;) {
@@ -234,14 +276,35 @@ void SerialParse(void *argument) {
  * @retval None
  */
 /* USER CODE END Header_IMU */
-void IMU(void *argument) {
+void IMU(void *argument)
+{
   /* USER CODE BEGIN IMU */
+
+  /* Infinite loop */
+  for (;;) {
+    osDelay(10);
+  }
+  /* USER CODE END IMU */
+}
+
+/* USER CODE BEGIN Header_MPUmeasure */
+/**
+ * @brief Function implementing the MPUmeasure_Task thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_MPUmeasure */
+void MPUmeasure(void *argument)
+{
+  /* USER CODE BEGIN MPUmeasure */
   MPU6050_Init();
   MPU6050_GetID(&MPU6050);
   uint32_t tick = osKernelGetTickCount();
-  uint8_t T_ms=1000/MPU6050.config.Sample_Rate;
+  uint8_t T_ms = 1000 / MPU6050.config.Sample_Rate;
   /* Infinite loop */
   for (;;) {
+    osMutexAcquire(MPU6050_MutexHandle, osWaitForever);
+    tick = osKernelGetTickCount();
     MPU6050_ReadAccX(&MPU6050);
     MPU6050_ReadAccY(&MPU6050);
     MPU6050_ReadAccZ(&MPU6050);
@@ -249,13 +312,62 @@ void IMU(void *argument) {
     MPU6050_ReadGyroY(&MPU6050);
     MPU6050_ReadGyroZ(&MPU6050);
     MPU6050_ReadTemp(&MPU6050);
+    osMutexRelease(MPU6050_MutexHandle);
     tick += pdMS_TO_TICKS(T_ms);
     osDelayUntil(tick);
   }
-  /* USER CODE END IMU */
+  /* USER CODE END MPUmeasure */
+}
+
+/* USER CODE BEGIN Header_Key */
+/**
+ * @brief Function implementing the Key_Task thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_Key */
+void Key(void *argument)
+{
+  /* USER CODE BEGIN Key */
+  uint32_t press_time = 0;
+  /* Infinite loop */
+  for (;;) {
+    // 1. 没按键时，死等在这里睡觉（0% CPU占用）
+    if (osSemaphoreAcquire(sem_KeyPressedHandle, osWaitForever) == osOK) {
+      osDelay(20);
+      if (HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin) != GPIO_PIN_RESET) {
+          continue; 
+      }
+      press_time = osKernelGetTickCount(); // 记录按下的时间
+      // 2. 判断按住的时间（这是一个简单的循环，不复杂）
+      while (HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin) == GPIO_PIN_RESET) {
+        if ((osKernelGetTickCount() - press_time) >= 2000) {
+          osMutexAcquire(MPU6050_MutexHandle, osWaitForever);
+          MPU6050_Calibrate(&MPU6050, 500);
+          osSemaphoreAcquire(sem_KeyPressedHandle, 0);
+          osMutexRelease(MPU6050_MutexHandle);
+          break;
+        }
+        osDelay(10);
+      }
+    }
+  }
+  /* USER CODE END Key */
 }
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
-
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) 
+{
+  // 1. 识别是不是我们的按键引脚（PE4）
+  if (GPIO_Pin == KEY_Pin) {
+    // 2. （可选防抖）再读一次电平，确认是真的按下了，而不是毛刺
+    if (HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin) == GPIO_PIN_RESET) {
+      // 3. 释放信号量，通知任务
+      // 注意：在中断中调用，不要用带阻塞的API，osSemaphoreRelease是安全的
+      osSemaphoreRelease(sem_KeyPressedHandle);
+    }
+  }
+}
 /* USER CODE END Application */
+
