@@ -1,0 +1,25 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'   # 只有推送 v 开头的标签（如 v1.0.0）才会触发
+
+permissions:
+  contents: write   # 必须！给机器人创建 Release 的写权限
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 必须！拉取完整历史 commit，否则生成不了完整的更新日志
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true   # 自动抓取历史 commit 并生成 Changelog
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
