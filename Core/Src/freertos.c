@@ -30,6 +30,8 @@
 #include <stdint.h>
 #include "i2c.h"
 #include "filter.h"
+#include "IMU.h"
+#include "math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,6 +43,7 @@
 /* USER CODE BEGIN PD */
 #define KEY_Pin       GPIO_PIN_4
 #define KEY_GPIO_Port GPIOE
+#define DEG2RAD (M_PI / 180.0f)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -53,6 +56,7 @@
 extern Motor_t motor[4];
 extern MPU6050_t MPU6050;
 extern Kalman1D_t Kalman1D_AX,Kalman1D_AY,Kalman1D_AZ,Kalman1D_GX,Kalman1D_GY,Kalman1D_GZ;
+YawKF2_t yaw_kf;
 /* USER CODE END Variables */
 /* Definitions for ReadMotor_Task */
 osThreadId_t ReadMotor_TaskHandle;
@@ -79,7 +83,7 @@ const osThreadAttr_t SerialParse_Task_attributes = {
 osThreadId_t IMU_TaskHandle;
 const osThreadAttr_t IMU_Task_attributes = {
   .name = "IMU_Task",
-  .stack_size = 128 * 4,
+  .stack_size = 2048 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for MPUmeasure_Task */
@@ -306,9 +310,13 @@ void SerialParse(void *argument)
 void IMU(void *argument)
 {
   /* USER CODE BEGIN IMU */
-
+  float z[2];
+  YawKF2_Init(&yaw_kf, 0.01f, 1e-4f, 1e-7f, 0.01f);
   /* Infinite loop */
   for (;;) {
+    z[0]=MPU6050.filteredData.Gyro_Z*DEG2RAD;
+    z[1]=yaw_kf.X[0];
+    YawKF2_Run(&yaw_kf, z, 1);
     osDelay(10);
   }
   /* USER CODE END IMU */
