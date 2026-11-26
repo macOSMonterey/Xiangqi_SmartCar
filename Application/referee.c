@@ -7,11 +7,15 @@
 frame_header_struct_t referee_receive_header;
 frame_header_struct_t referee_send_header;
 
-game_state_t game_state;
+REMOTE_t remote;
+FEEDBACK_t feedback;
 
 void init_referee_struct_data(void)
 {
     memset(&referee_receive_header, 0, sizeof(frame_header_struct_t));
+    memset(&referee_send_header, 0, sizeof(frame_header_struct_t));
+    memset(&remote, 0, sizeof(REMOTE_t));
+    memset(&feedback, 0, sizeof(FEEDBACK_t));
 }
 
 void referee_data_solve(uint8_t *frame)
@@ -29,9 +33,14 @@ void referee_data_solve(uint8_t *frame)
 
     switch (cmd_id)
     {
-        case GAME_STATE_CMD_ID:
+        case REMOTE_CMD_ID:
         {
-            memcpy(&game_state, frame + index, sizeof(game_state_t));
+            memcpy(&remote, frame + index, sizeof(REMOTE_t));
+        }
+        break;
+        case FEEDBACK_CMD_ID:
+        {
+            memcpy(&feedback, frame + index, sizeof(FEEDBACK_t));
         }
         break;
 
@@ -42,9 +51,16 @@ void referee_data_solve(uint8_t *frame)
     }
 }
 
-/*
-void get_buffer_energy_and_shooter_barrel_heat(float *buffer_energy, float *shooter_barrel_heat)
+void Get_REMOTE(float *vx, float *vy, float *yaw)
 {
-    *buffer_energy = power_heat_data.buffer_energy;;
-    *shooter_barrel_heat = power_heat_data.shooter_17mm_barrel_heat;
-}*/
+    *vx = remote.vx;
+    *vy = remote.vy;
+    *yaw = remote.yaw;
+}
+
+void Get_FEEDBACK(float *vx, float *vy, float *yaw)
+{
+    *vx = feedback.vx;
+    *vy = feedback.vy;
+    *yaw = feedback.yaw;
+}

@@ -23,7 +23,8 @@
 
 typedef enum
 {
-    GAME_STATE_CMD_ID                 = 0x0001,		//比赛状态数据，固定以 1Hz 频率发送
+  REMOTE_CMD_ID                 = 0x01,
+  FEEDBACK_CMD_ID                 = 0x02,
 }referee_cmd_id_t;
 
 typedef  struct

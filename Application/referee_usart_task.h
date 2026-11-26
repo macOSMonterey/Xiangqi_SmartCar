@@ -31,5 +31,5 @@
   * @param[in]      pvParameters: NULL
   * @retval         none
   */
-extern void referee_usart_task(void const * argument);
+void referee_usart_task(void *argument);
 #endif

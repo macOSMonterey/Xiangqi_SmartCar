@@ -57,6 +57,9 @@ extern Motor_t motor[4];
 extern MPU6050_t MPU6050;
 extern Kalman1D_t Kalman1D_AX,Kalman1D_AY,Kalman1D_AZ,Kalman1D_GX,Kalman1D_GY,Kalman1D_GZ;
 YawKF2_t yaw_kf;
+static volatile uint32_t idle_tick = 0;
+TickType_t ulLastIdleTick = 0;
+float cpu_usage;
 /* USER CODE END Variables */
 /* Definitions for ReadMotor_Task */
 osThreadId_t ReadMotor_TaskHandle;
@@ -69,7 +72,7 @@ const osThreadAttr_t ReadMotor_Task_attributes = {
 osThreadId_t Chassis_TaskHandle;
 const osThreadAttr_t Chassis_Task_attributes = {
   .name = "Chassis_Task",
-  .stack_size = 128 * 4,
+  .stack_size = 64 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for SerialParse_Task */
@@ -83,7 +86,7 @@ const osThreadAttr_t SerialParse_Task_attributes = {
 osThreadId_t IMU_TaskHandle;
 const osThreadAttr_t IMU_Task_attributes = {
   .name = "IMU_Task",
-  .stack_size = 2048 * 4,
+  .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for MPUmeasure_Task */
@@ -98,6 +101,20 @@ osThreadId_t Key_TaskHandle;
 const osThreadAttr_t Key_Task_attributes = {
   .name = "Key_Task",
   .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for referee_task */
+osThreadId_t referee_taskHandle;
+const osThreadAttr_t referee_task_attributes = {
+  .name = "referee_task",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for cpu_monitor_task */
+osThreadId_t cpu_monitor_taskHandle;
+const osThreadAttr_t cpu_monitor_task_attributes = {
+  .name = "cpu_monitor_task",
+  .stack_size = 64 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for SerialData */
@@ -127,30 +144,24 @@ void SerialParse(void *argument);
 void IMU(void *argument);
 void MPUmeasure(void *argument);
 void Key(void *argument);
+extern void referee_usart_task(void *argument);
+void cpu_monitor(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /* Hook prototypes */
-void configureTimerForRunTimeStats(void);
-unsigned long getRunTimeCounterValue(void);
 void vApplicationIdleHook(void);
 void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName);
 
-/* USER CODE BEGIN 1 */
-/* Functions needed when configGENERATE_RUN_TIME_STATS is on */
-__weak void configureTimerForRunTimeStats(void)
-{
-
-}
-
-__weak unsigned long getRunTimeCounterValue(void)
-{
-return 0;
-}
-/* USER CODE END 1 */
-
 /* USER CODE BEGIN 2 */
-void vApplicationIdleHook(void) {
+void vApplicationIdleHook(void) 
+{
+  TickType_t ulCurrentTick = xTaskGetTickCount();
+  if(ulCurrentTick > ulLastIdleTick)
+  {
+      idle_tick++;
+      ulLastIdleTick = ulCurrentTick;
+  }
   /* vApplicationIdleHook() will only be called if configUSE_IDLE_HOOK is set
   to 1 in FreeRTOSConfig.h. It will be called on each iteration of the idle
   task. It is essential that code added to this hook function never attempts
@@ -227,6 +238,12 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of Key_Task */
   Key_TaskHandle = osThreadNew(Key, NULL, &Key_Task_attributes);
+
+  /* creation of referee_task */
+  referee_taskHandle = osThreadNew(referee_usart_task, NULL, &referee_task_attributes);
+
+  /* creation of cpu_monitor_task */
+  cpu_monitor_taskHandle = osThreadNew(cpu_monitor, NULL, &cpu_monitor_task_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -343,7 +360,7 @@ void MPUmeasure(void *argument)
   MPU6050_GetID(&MPU6050);
   HAL_StatusTypeDef ret = HAL_OK;
   uint32_t tick = osKernelGetTickCount();
-  uint8_t T_ms = 1000 / MPU6050.config.Sample_Rate;
+  uint32_t T_ms = 1000 / MPU6050.config.Sample_Rate;
   uint8_t fail_count = 0; // 连续失败计数器
   /* Infinite loop */
   for (;;) {
@@ -421,6 +438,29 @@ void Key(void *argument)
     }
   }
   /* USER CODE END Key */
+}
+
+/* USER CODE BEGIN Header_cpu_monitor */
+/**
+* @brief Function implementing the cpu_monitor_task thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_cpu_monitor */
+void cpu_monitor(void *argument)
+{
+  /* USER CODE BEGIN cpu_monitor */
+  uint32_t tick = osKernelGetTickCount();
+  /* Infinite loop */
+  for(;;)
+  {
+    tick += pdMS_TO_TICKS(1000);
+    osDelayUntil(tick);
+    cpu_usage = 100.0f - idle_tick * 100.0f / (float)configTICK_RATE_HZ;
+    idle_tick=0;
+    ulLastIdleTick = xTaskGetTickCount();
+  }
+  /* USER CODE END cpu_monitor */
 }
 
 /* Private application code --------------------------------------------------*/

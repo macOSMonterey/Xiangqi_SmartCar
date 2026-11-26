@@ -35,6 +35,7 @@
 #include "protocol.h"
 #include "referee.h"
 #include "usart.h"
+#include <stdint.h>
 
 /**
   * @brief          single byte upacked 
@@ -66,36 +67,15 @@ unpack_data_t referee_unpack_obj;
   * @param[in]      pvParameters: NULL
   * @retval         none
   */
-
+uint8_t usart1_dma_rx_idx = 0;
 static void usart1_dma_doublebuf_start(void)
 {
-    // 启动 DMA 双缓冲
-    HAL_DMAEx_MultiBufferStart_IT(huart1.hdmarx,
-                                  (uint32_t)&USART1->DR,
-                                  (uint32_t)usart1_buf[0],
-                                  (uint32_t)usart1_buf[1],
-                                  USART_RX_BUF_LENGHT);
-
-    // 开启串口 DMA 接收
-    SET_BIT(USART1->CR3, USART_CR3_DMAR);
-    // 开启空闲中断
+    // F1 用 ReceiveToIdle_DMA，IDLE空闲事件回调就是 HAL_UARTEx_RxEventCallback
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart1, usart1_buf[usart1_dma_rx_idx], USART_RX_BUF_LENGHT);
     __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE);
 }
-/*
-void referee_usart_task(void const * argument)
-{
-    init_referee_struct_data();
-    fifo_s_init(&referee_fifo, referee_fifo_buf, REFEREE_FIFO_BUF_LENGTH);
-    usart6_init(usart6_buf[0], usart6_buf[1], USART_RX_BUF_LENGHT);
 
-    while(1)
-    {
-        referee_unpack_fifo_data();
-        osDelay(10);
-    }
-}*/
-
-void referee_usart_task(void const * argument)
+void referee_usart_task(void *argument)
 {
     // 原有初始化
     init_referee_struct_data();
@@ -234,50 +214,12 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
     if (huart->Instance == USART1)
     {
-        // 判断当前 DMA 在写哪个缓冲区，我们读另一个
-        if ((huart->hdmarx->Instance->CR & DMA_SxCR_CT) == RESET)
-        {
-            // 刚接收完的是 buf[1]
-            fifo_s_puts(&referee_fifo, (char*)usart1_buf[1], Size);
-        }
-        else
-        {
-            // 刚接收完的是 buf[0]
-            fifo_s_puts(&referee_fifo, (char*)usart1_buf[0], Size);
-        }
-        
+        // usart1_dma_rx_idx 是刚才DMA接收填满的那块
+        fifo_s_puts(&referee_fifo, (char*)usart1_buf[usart1_dma_rx_idx], Size);
         detect_hook(REFEREE_TOE);
+
+        // 切换到另外一块buf，重启DMA接收
+        usart1_dma_rx_idx = 1 - usart1_dma_rx_idx;
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart1, usart1_buf[usart1_dma_rx_idx], USART_RX_BUF_LENGHT);
     }
 }
-/*
-void USART6_IRQHandler(void)
-{
-    static volatile uint8_t res;
-    if(USART6->SR & UART_FLAG_IDLE)
-    {
-        __HAL_UART_CLEAR_PEFLAG(&huart6);
-
-        static uint16_t this_time_rx_len = 0;
-
-        if ((huart6.hdmarx->Instance->CR & DMA_SxCR_CT) == RESET)
-        {
-            __HAL_DMA_DISABLE(huart6.hdmarx);
-            this_time_rx_len = USART_RX_BUF_LENGHT - __HAL_DMA_GET_COUNTER(huart6.hdmarx);
-            __HAL_DMA_SET_COUNTER(huart6.hdmarx, USART_RX_BUF_LENGHT);
-            huart6.hdmarx->Instance->CR |= DMA_SxCR_CT;
-            __HAL_DMA_ENABLE(huart6.hdmarx);
-            fifo_s_puts(&referee_fifo, (char*)usart6_buf[0], this_time_rx_len);
-            detect_hook(REFEREE_TOE);
-        }
-        else
-        {
-            __HAL_DMA_DISABLE(huart6.hdmarx);
-            this_time_rx_len = USART_RX_BUF_LENGHT - __HAL_DMA_GET_COUNTER(huart6.hdmarx);
-            __HAL_DMA_SET_COUNTER(huart6.hdmarx, USART_RX_BUF_LENGHT);
-            huart6.hdmarx->Instance->CR &= ~(DMA_SxCR_CT);
-            __HAL_DMA_ENABLE(huart6.hdmarx);
-            fifo_s_puts(&referee_fifo, (char*)usart6_buf[1], this_time_rx_len);
-            detect_hook(REFEREE_TOE);
-        }
-    }
-}*/

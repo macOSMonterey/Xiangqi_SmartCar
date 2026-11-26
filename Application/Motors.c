@@ -4,7 +4,7 @@
 #include "tim.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include <stdint.h>
+#include "referee.h"
 
 Motor_t motor[4];
 Chassis_Speed_t Chassis_Move;
@@ -189,6 +189,7 @@ void PID_calc(Motor_t *motor)
 
 void Chassis_Ctrl(void)
 {
+	//Get_REMOTE(&Chassis_Move.vx,);
 	Chassis_Kinematics(&Chassis_Move,motor);
 	for(uint8_t i=0;i<4;i++)
 	PID_calc(&motor[i]);
